@@ -1,6 +1,6 @@
 from typing import List, Optional
 import math
-
+from ipdb import set_trace as bp
 import torch
 from torch import fx
 
@@ -144,10 +144,10 @@ class ScalarMLPFunction(CodeGenMixin, torch.nn.Module):
             features = torch.matmul(features, w)
 
             if mlp_batchnorm:
-                # if we call batchnorm, do it after the nonlinearity
+                # if we call batchnorm, do it after the nonlinearity ###marcel: bu we ware doing it before the nonlinearity??
                 features = Proxy(graph.call_module(f"_bn_{layer}", (features.node,)))
                 setattr(base, f"_bn_{layer}", torch.nn.BatchNorm1d(h_out))
-
+                #bp()
             # generate nonlinearity code
             if nonlinearity is not None and layer < num_layers - 1:
                 features = nonlinearity(features)
@@ -164,6 +164,6 @@ class ScalarMLPFunction(CodeGenMixin, torch.nn.Module):
             base._dropout = torch.nn.AlphaDropout(p=mlp_dropout_p)
 
         self._codegen_register({"_forward": fx.GraphModule(base, graph)})
-
+        #bp()
     def forward(self, x):
         return self._forward(x)

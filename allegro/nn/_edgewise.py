@@ -1,6 +1,6 @@
 from typing import Optional
 import math
-
+from ipdb import set_trace as bp
 import torch
 from torch_runstats.scatter import scatter
 
@@ -37,6 +37,7 @@ class EdgewiseReduce(GraphModuleMixin, torch.nn.Module):
             else {},
         )
         self._factor = None
+        #bp()
         if normalize_edge_reduce and avg_num_neighbors is not None:
             self._factor = 1.0 / math.sqrt(avg_num_neighbors)
 
@@ -53,7 +54,9 @@ class EdgewiseReduce(GraphModuleMixin, torch.nn.Module):
         )
 
         factor: Optional[float] = self._factor  # torchscript hack for typing
+        #bp()
         if factor is not None:
+            #bp()
             out = out * factor
 
         data[self.out_field] = out

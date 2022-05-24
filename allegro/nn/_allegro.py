@@ -1,3 +1,5 @@
+from ipdb import set_trace as bp
+
 from typing import Optional, List
 import math
 import functools
@@ -72,6 +74,7 @@ class Allegro_Module(GraphModuleMixin, torch.nn.Module):
         # Other:
         irreps_in=None,
     ):
+        #bp()
         super().__init__()
         SCALAR = o3.Irrep("0e")  # define for convinience
 
@@ -216,7 +219,7 @@ class Allegro_Module(GraphModuleMixin, torch.nn.Module):
         )
 
         self._n_scalar_outs = []
-
+        #bp()
         # == Build TPs ==
         for layer_idx, (arg_irreps, out_irreps) in enumerate(
             zip(tps_irreps_in, tps_irreps_out)
@@ -421,6 +424,7 @@ class Allegro_Module(GraphModuleMixin, torch.nn.Module):
         :param data: AtomicDataDict.Type
         :return: AtomicDataDict.Type
         """
+        #bp()
         edge_center = data[AtomicDataDict.EDGE_INDEX_KEY][0]
         edge_neighbor = data[AtomicDataDict.EDGE_INDEX_KEY][1]
 
@@ -437,8 +441,8 @@ class Allegro_Module(GraphModuleMixin, torch.nn.Module):
 
         edge_length = data[AtomicDataDict.EDGE_LENGTH_KEY]
         num_edges: int = len(edge_attr)
-        edge_invariants = data[self.edge_invariant_field]
-        node_invariants = data[self.node_invariant_field]
+        edge_invariants = data[self.edge_invariant_field]#/0.3
+        node_invariants = data[self.node_invariant_field]#/0.3###so that they also have std of one
         # pre-declare variables as Tensors for TorchScript
         scalars = self._zero
         coefficient_old = scalars
@@ -463,7 +467,7 @@ class Allegro_Module(GraphModuleMixin, torch.nn.Module):
         ]
         # The nonscalar features. Initially, the edge data.
         features = edge_attr
-
+        #bp()
         layer_index: int = 0
         # compute the sigmoids vectorized instead of each loop
         layer_update_coefficients = self._latent_resnet_update_params.sigmoid()
@@ -498,6 +502,7 @@ class Allegro_Module(GraphModuleMixin, torch.nn.Module):
 
             # Compute latents
             new_latents = latent(torch.cat(latent_inputs_to_cat, dim=-1)[prev_mask])
+            #bp()
             # Apply cutoff, which propagates through to everything else
             new_latents = cutoff_coeffs[active_edges].unsqueeze(-1) * new_latents
 
@@ -541,10 +546,11 @@ class Allegro_Module(GraphModuleMixin, torch.nn.Module):
                 features = self._env_weighter(
                     features[prev_mask], env_w
                 )  # features is edge_attr
+                #bp()
             else:
                 # just take the previous features that we still need
                 features = features[prev_mask]
-
+            #bp()
             # Extract weights for the environment builder
             env_w = weights.narrow(-1, w_index, self._env_weighter.weight_numel)
             w_index += self._env_weighter.weight_numel
@@ -555,11 +561,19 @@ class Allegro_Module(GraphModuleMixin, torch.nn.Module):
             # Those are the active edges, which are the only ones we
             # have weights for (env_w) anyway.
             # So we mask out the edges in the sum:
+            #bp()
+            #bond_weights = self._env_weighter(edge_attr[active_edges], env_w) #* #0.5 * #.expand(edge_attr[active_edges].shape[0]*2,
+                                                                                         #  self._env_weighter.multiplicity_out,
+            #bp()                                                                           #   self._env_weighter.weight_numel)
+            #indices = torch.cat(edge_center[active_edges], edge_neighbor[active_edges])
             local_env_per_edge = scatter(
+            # local_env_per_edge_center = scatter(
                 self._env_weighter(edge_attr[active_edges], env_w),
                 edge_center[active_edges],
                 dim=0,
+                #dim_size = data["pos"].shape[0]
             )
+            #bp()
             if self.env_sum_normalizations.ndim < 2:
                 # it's a scalar per layer
                 norm_const = self.env_sum_normalizations[layer_index]
@@ -569,12 +583,15 @@ class Allegro_Module(GraphModuleMixin, torch.nn.Module):
                 norm_const = self.env_sum_normalizations[
                     layer_index, data[AtomicDataDict.ATOM_TYPE_KEY]
                 ].unsqueeze(-1)
-            local_env_per_edge = local_env_per_edge * norm_const
+            local_env_per_edge = local_env_per_edge * norm_const #* 2**(-0.5)
+            #bp()
             local_env_per_edge = env_linear(local_env_per_edge)
             # Copy to get per-edge
             # Large allocation, but no better way to do this:
-            local_env_per_edge = local_env_per_edge[edge_center[active_edges]]
+            #bp()
 
+            local_env_per_edge = local_env_per_edge[edge_center[active_edges]]
+            #bp()
             # Now do the TP
             # recursively tp current features with the environment embeddings
             features = tp(features, local_env_per_edge)

@@ -1,3 +1,5 @@
+from ipdb import set_trace as bp
+
 from typing import Optional
 import logging
 
@@ -97,5 +99,5 @@ def Allegro(config, initialize: bool, dataset: Optional[AtomicDataset] = None):
     }
 
     model = SequentialGraphNetwork.from_parameters(shared_params=config, layers=layers)
-
+    bp()
     return model
